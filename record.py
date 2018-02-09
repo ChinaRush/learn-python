@@ -2335,3 +2335,288 @@ print('Upcoming Events:')
 print('----------------------------------------')
 
 print(events)
+
+
+#Pillow ，图像处理的标准库
+
+from PIL import Image,ImageFilter
+import os
+im = Image.open('1.png')
+w,h = im.size
+print('Original image size: {0}x{1}'.format(w,h))
+print(im.mode)
+
+# 缩放比例，注意图片的mode，需要转换
+rgb_im = im.convert('RGB')
+rgb_im.thumbnail((w//2,h//2))
+print('Resize image to:{0}x{1}'.format(w//2,h//2))
+print(rgb_im.mode)
+rgb_im.save('2.jpg')
+
+# 模糊图片
+im2 = im.filter(ImageFilter.BLUR)
+im2.save('blur.png')
+
+
+# 绘图
+
+from PIL import Image,ImageDraw,ImageFont,ImageFilter
+import random
+
+# 生成随机字母
+def rndChar():
+    return chr(random.randint(65,90))
+# 生成随机颜色，用来填充背景
+def rndColor():
+    return(random.randint(64,255),random.randint(64,255),random.randint(64,255))
+# 生成随机颜色2，用来填充文本
+def rndColor2():
+    return (random.randint(32, 127), random.randint(32, 127), random.randint(32, 127))
+
+# 定义长宽
+width = 60 * 4
+height = 60
+# 新建RGB类的图片，默认为白色
+image = Image.new('RGB',(width,height),(255,255,255))
+# 新建字体对象
+font = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',36)
+# 新建draw对象
+draw = ImageDraw.Draw(image)
+
+# 填充每个像素
+for x in range(width):
+    for y in range(height):
+        draw.point((x,y),fill=rndColor())
+
+# 填充文本文字
+for t in range(4):
+    draw.text((60 * t + 10,10),rndChar(),font=font,fill=rndColor2())
+
+# 模糊
+image = image.filter(ImageFilter.BLUR)
+# 保存图片
+image.save('code.jpg')
+# 显示图片
+image.show('code.jpg')
+
+
+
+# requests
+# 前面我们用过urllib库，但是用起来麻烦，而且缺少很多高级功能，更好的方案是使用requests
+
+# 通过get访问一个页面
+import requests
+url = 'https://www.douban.com/'
+r = requests.get(url)
+
+# 返回状态吗
+print(r.status_code)
+
+# 返回页面内容
+print(r.text)
+
+# 对于带参数的URL，传入一个dict作为params参数
+params = {'q':'python','cat':1001}
+r = requests.get(url,params=params)
+
+# 返回实际请求url
+print(r.url)
+
+# 返回HTTP响应的头
+print(r.headers)
+print(r.headers['Content-Type'])
+
+# 无论响应是文本还是二进制内容，我们都可以使用content属性获得bytes对象
+print(r.content)
+
+# requests还内置了一个JSON解码器，用来处理JSON数据
+url = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20%3D%202151330&format=json'
+r = requests.get(url)
+print(r.json())
+
+# 如果我们传入HTTP Header的话，我们可以传入一个dict作为headers参数
+headers={'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit'}
+r = request.get(url,headers=headers)
+print(r.text) # 可以看到返回的内容确实是手机版了
+
+# requests发送POST请求也变得十分容易
+def login_page(url):
+    login_url = 'http://cmdb.quark.com/account/login?cburl=http://job.quark.com/jobapp/login1'
+    print('Login to job page...')
+    username = input('Username: ')
+    password = input('Password: ')
+    data = {
+        'user': username,
+        'password': password
+    }
+
+    s = requests.Session()
+    s.post(login_url,data=data)
+    result = s.get(url)
+    return result.status_code,result.cookies
+
+page_url = 'http://job.quark.com/jobapp/'
+print(login_page(page_url))
+
+# requests默认使用application/x-www-form-urlencode对POST数据编码，如果要传递JSON数据，可以直接传入json参数
+params = {'key': 'value'}
+r = requests.post(url,json=params)
+
+# 同样，上传文件需要复杂的编码格式，但是requests把它简化成files参数
+upload_files = {'file': open('report.xls','rb')} # 读取文件的时候，注意务必使用'rb'进行读取，这样获取的bytes长度才是文件的长度
+r = requests.post(url,files=upload_files)
+
+# 把post() 方法替换成put() delete()等，就可以PUT和DELETE对资源进行操作了
+
+# requests 对cookie做了特殊处理，使得我们不必去解析cookie就可以轻松获取指定的cookie
+print(r.cookies)
+print(r.cookies['csrftoken'])
+
+# 要在请求中传入cookie，我们可以传入一个dict作为cookies参数
+cs = {'token': '12345', 'status': 'working'}
+r = requests.get(url,cookies=cs)
+
+# 要指定超时，可以传入timeout参数
+r = requests.get(url,timeout=2.5)
+
+
+# chardet 检测编码
+# 用chardet.detect 检测编码，获取到编码后，再转换为str，就可以方便后续处理
+import chardet
+data = '离离原上草，一岁一枯荣'.encode('utf-8')
+s=chardet.detect(data)['encoding']
+print(data.decode(s))
+
+# 当我们拿到一个bytes时，就可以检测其编码
+print(chardet.detect(b'Hello,world'))
+
+# GBK
+print(chardet.detect('中国'.encode('gbk')))
+
+# UTF-8
+print(chardet.detect('中国'.encode('utf-8')))
+
+
+# psutil 获取系统信息
+# 用python来编写脚本简化日常运维工作很常见，在linux下，我们可以通过subprocess模块调用并获取结果，但是这样挺麻烦
+# 我们可以使用psutil这个第三方模块，来获取系统信息，实现系统监控，而且可以跨平台使用
+
+# 统计当前时间CPU的用户/系统/空闲时间
+
+# 通过统计这个，我们可以来计算下top命令显示出的一些利用率，和没有显示出来的利用率之类的，比如，统计用户空间的CPU利用率
+r'''top上的cpu利用率，大致算法如下
+CPU总时间2=user2+system2+nice2+idle2+iowait2+irq2+softirq2
+CPU总时间1=user1+system1+nice1+idle1+iowait1+irq1+softirq1
+用户cpu利用率 = user_pass * 100% / (CPU总时间2 - CPU总时间1)
+内核cpu利用率 = system_pass * 100% / (CPU总时间2 - CPU总时间1)
+总的cpu利用率= 用户cpu利用率 + 内核cpu利用率
+'''
+
+while True:
+    cs1 = sum(psutil.cpu_times())
+    cu1 = psutil.cpu_times().user
+    time.sleep(3)
+    cs2 = sum(psutil.cpu_times())
+    cu2 = psutil.cpu_times().user
+    ss = cs2 - cs1
+    print(((cu2 - cu1) / ss) * 100)
+
+print(psutil.cpu_times())
+
+# 实现类似top命令的CPU使用率，每秒刷新一次，累计10次
+# 当percpu=True，会返回每个CPU的使用率， 否则就是总使用率
+for x in range(10):
+    print(psutil.cpu_percent(interval=1,percpu=True))
+
+# 获取物理内存信息
+print(psutil.virtual_memory())
+
+# 获取swap内存信息
+print(psutil.swap_memory())
+
+# 获取磁盘分区信息
+print(psutil.disk_partitions())
+
+# 获取磁盘使用情况
+print(psutil.disk_usage('/'))
+
+# 获取磁盘IO
+print(psutil.disk_io_counters())
+
+# 获取网络读写字节/包的个数
+print(psutil.net_io_counters())
+
+# 获取网络接口信息
+print(psutil.net_if_addrs())
+
+# 获取网络接口状态
+print(psutil.net_if_stats())
+
+# 获取当前网络连接信息
+print(psutil.net_connections())
+
+# 获取所有进程ID
+print(psutil.pids())
+
+# 获取指定的进程ID
+p = psutil.Process(2418)
+
+# 获取进程名称
+print(p.name())
+
+# 获取进程执行文件路径
+print(p.exe())
+
+# 获取进程工作目录
+print(p.cwd())
+
+# 获取进程启动命令
+print(p.cmdline())
+
+# 获取进程父进程ID
+print(p.ppid)
+
+# 获取进程父进程
+print(p.parent())
+
+# 获取进程子进程
+print(p.children())
+
+# 获取进程状态
+print(p.status())
+
+# 获取进程用户名
+print(p.username())
+
+# 获取进程创建时间
+print(p.create_time())
+
+# 获取进程中断
+print(p.terminal())
+
+# 获取进程使用的CPU时间
+print(p.cpu_times())
+
+# 获取进程使用的内存
+print(p.memory_info())
+
+# 获取进程打开的文件
+print(p.open_files())
+
+# 获取进程相关的网络连接
+print(p.connections())
+
+# 获取进程的线程数量
+print(p.num_threads())
+
+# 获取进程的所有线程信息
+print(p.threads())
+
+# 获取进程的环境变量
+print(p.environ())
+
+# 结束经常
+p.terminate()
+
+# psutil 还提供了一个test()函数，可以模拟出ps命令的效果
+print(psutil.test())
