@@ -2620,3 +2620,48 @@ p.terminate()
 
 # psutil 还提供了一个test()函数，可以模拟出ps命令的效果
 print(psutil.test())
+
+
+
+
+# virtualenv
+# virtualenv就是为了创建一套“隔离”的python运行环境
+# 首先我们通过pip安装virtualenv
+pip3 install virtualenv
+# 然后假定我们要开发一个新项目，需要一套独立的python运行环境，就可以这么做
+
+# 第一步，创建一个独立的python运行环境
+mkdir myproject
+cd myproject
+
+# 第二步，创建一个独立的python运行环境，命名为venv
+virtualenv --no-site-packages venv
+Using base prefix '/usr/local/.../Python.framework/Versions/3.4'
+New python executable in venv/bin/python3.4
+Also creating executable in venv/bin/python
+Installing setuptools, pip, wheel...done.
+
+# 第三步，通过source venv/bin/activate进入该环境，然后就想干嘛就干嘛吧
+# 在venv环境下，用pip安装的包都被安装到venv这个环境下，系统python环境不受影响
+
+
+# 图形界面
+# 常见的图形界面库包括Tk,wxWidgets,Qt,GTK等等
+# python自带的Tkinter,无需安装任何包，就可以直接使用，这里我们简单介绍下如何使用Tkinter进行GUI编程
+
+# 第一个GUI程序
+from tkinter import *
+class Application(Frame):
+    def __init__(self,master=None):
+        Frame.__init__(self,master)
+        self.pack()
+        self.createWidgets()
+    def createWidgets(self):
+        self.helloLabel=Label(self,text='Hello,world!')
+        self.helloLabel.pack()
+        self.quitButton = Button(self,text='quit',command=self.quit)
+        self.quitButton.pack()
+
+app = Application()
+app.master.title('Hello,World!')
+app.mainloop()
