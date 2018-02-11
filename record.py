@@ -2827,46 +2827,67 @@ s.close()
 # MDA：Mail Delivery Agent——邮件投递代理
 # 发件人 -> MUA -> MTA -> MTA -> 若干个MTA -> MDA <- MUA <- 收件人
 
-
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
+# 下面写了个简单的发送多种格式邮件的脚本
 import smtplib
-from email import encoders
-from email.header import Header
+from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.header import Header
 from email.utils import parseaddr,formataddr
+
+# 定义一个函数来格式化邮件地址
 def _format_addr(s):
     name,addr=parseaddr(s)
     return formataddr((Header(name,'utf-8').encode(),addr))
-
+# 发送地址
 from_addr = '362240111@qq.com'
-password = 'nzczqhxqaqozbgjc'
+# 发送邮件密码，如果开启了验证的，则需要获取到这个加密的密码，不是你的邮箱账户密码哦
+password = 'xxxxxxx'
+# 收件地址
 to_addr = 'gochna@sina.com'
+# 发件MTA SMTP server
 smtp_server = 'smtp.qq.com'
+# 邮件主题
 subject = 'Picture and html mail test'
 
+# 同时支持html和plain格式
 msg = MIMEMultipart('alternative')
+# 格式化发件地址
 msg['From'] = _format_addr('Python lover <{0}>'.format(from_addr))
+# 格式化收件地址
 msg['To'] = _format_addr('root <{0}>'.format(to_addr))
 msg['Subject'] = Header(subject,'utf-8')
 
-
-underly = '<html><body><h1>Hello</h1>' +'<p>send by <a href="http://www.python.org">Python</a>...</p>' +'</body></html>'
-underly = MIMEText(underly,'html','utf-8')
+# html 格式，嵌入图片就是那个cid:0，表示图片I，就是下面的<0>
+underline = """
+    <html>
+      <head>测试一下</head>
+      <body>
+        <p>兄弟们!<br>
+           你们好啊<br>
+           点击进入 <a href="https://www.python.org/">Python</a>
+           <br><img src="cid:0"></br>
+        </p>
+      </body>
+    </html>
+"""
+# 构造html
+underly = MIMEText(underline,'html','utf-8')
 msg.attach(underly)
 
+# 构造图片
 with open('1.png','rb') as f:
     msgImage = MIMEImage(f.read())
 msgImage.add_header('Content-ID','<0>')
 msg.attach(msgImage)
 
-
-att = '<html><body><h1>Hello</h1>' +'<p><img src="cid:0"></p>' +'</body></html>'
-att = MIMEText(att,'html','utf-8')
+# 构造附件
+att = MIMEText(open('sslocal.tar.gz','rb').read(),'base64','utf-8')
+att['Content-Type'] = 'application/octet-stream'
+att['Content-Disposition'] = 'attatchment;filename="sslocal.tar.gz"'
 msg.attach(att)
 
+# 发送哟件
 server = smtplib.SMTP_SSL(smtp_server, 465)
 server.set_debuglevel(1)
 server.login(from_addr, password)
