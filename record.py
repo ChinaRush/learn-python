@@ -2665,3 +2665,210 @@ class Application(Frame):
 app = Application()
 app.master.title('Hello,World!')
 app.mainloop()
+
+
+# 再对这个GUI程序改进下，加入一个文本框，让用户可以输入文本，然后点击按钮后，弹出消息对话框
+from tkinter import *
+import tkinter.messagebox as messagebox
+
+
+class Application(Frame):
+    def __init__(self,master=None):
+        Frame.__init__(self,master)
+        self.pack()
+        self.createWidgets()
+
+    def createWidgets(self):
+        self.nameInput = Entry(self)
+        self.nameInput.pack()
+        self.alertButton = Button(self,text='Hello',command=self.hello)
+        self.alertButton.pack()
+        self.quitButton = Button(self,text='Quit',command=self.quit)
+        self.quitButton.pack()
+
+    def hello(self):
+        name = self.nameInput.get() or 'world'
+        messagebox.showinfo('Message','Hello, {0}'.format(name))
+
+app = Application()
+app.master.title('Hello World')
+app.mainloop()
+
+# 网络编程
+
+# TCP 编程
+# socket是网络编程的一个抽象概念。通常我们用一个socket表示 "打开了一个网络链接"，而打开一个socket需要知道目标计算机的IP和port，再指定procotol即可
+
+# 客户端
+#大多数连接都是可靠的tcp连接。创建TCP连接时，主动发起连接的叫客户端，被动响应连接的叫服务器
+import socket
+import threading,time
+def sockClient(url,port=80):
+    # 创建一个socket
+    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    # 建立连接
+    s.connect((url,port))
+    # 建立连接之后，我们发送请求数据
+    s.send(b'GET / HTTP/1.1\nHost: www.sina.com.cn\nConnection: close\n\n')
+    buffer = []
+    while True:
+        # 接收服务器响应的数据，为了后面保存到本地
+        data = s.recv(1024)
+        if data:
+            buffer.append(data)
+        else:
+            break
+    data = b''.join(buffer)
+    # 关闭连接
+    s.close()
+    header,html= data.split(b'\n\n',1)
+    # 保存到本地
+    with open('sina.html','wb') as f:
+        f.write(html)
+    return
+
+# server
+
+def sockServer():
+    # 创建一个socket
+    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    # 监听端口
+    s.bind(('127.0.0.1',9999))
+    # 等待连接的最大数量
+    s.listen(5)
+
+    # 具体处理连接的方法
+    def tcplink(sock,addr):
+        print('Accept new connection from {0}:{1}'.format(addr[0],addr[1]))
+        # 发送欢迎信息，对应下面客户端的接受欢迎信息
+        sock.send(b'Welcome...')
+        while True:
+            # 接收从客户端发过来的信息
+            data = sock.recv(1024)
+            time.sleep(1)
+            # 如果没有信息或者信息为exit，则推出循环
+            if not data or data.decode('utf-8') == 'exit':
+                break
+            # 发送Hello信息
+            sock.send(('Hello, {0}'.format(data.decode('utf-8'))).encode('utf-8'))
+        # 关闭连接
+        sock.close()
+        # 打印连接地址和端口
+        print('Connection from {0}:{1}'.format(addr[0],addr[1]))
+
+    print('Waiting for connection...')
+    while True:
+        # 接受连接并返回（sock,address）,其中sock是新的套接字对象，可以用来接收和发送数据。address是连接客户端的地址
+        sock,addr = s.accept()
+        # 线程的方式
+        t = threading.Thread(target=tcplink,args=(sock,addr))
+        t.start()
+
+
+# client
+def sockClient(url,port=9999):
+    # 创建一个socket
+    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    # 连接到服务器
+    s.connect((url,port))
+    # 接受从服务器上发送的欢迎信息
+    print(s.recv(1024).decode('utf-8'))
+    for data in [b'Michael',b'Tracy',b'Sarah']:
+        # 发送数据到服务器
+        s.send(data)
+        # 打印出从服务器返回的Hello信息
+        print(s.recv(1024).decode('utf-8'))
+    # 发送exit
+    s.send(b'exit')
+    # 关闭连接
+    s.close()
+
+
+# UDP编程
+# 使用UDP协议时，不需要建立连接，只需要知道对方的IP地址和端口，就可以直接发送数据包，但是能不能到达就不知道了
+# 虽然UDP传输数据不可靠，但它的优点是和TCP比，速度快(真的很快啊)，对于不要求可靠到达的数据，就可以使用UDP协议
+
+
+# 插播一个知识点：
+# recv的recvfrom是可以替换使用的，只是recvfrom多了个返回参数addr，对于udp这种无连接的，可以很方便的进行回复
+# 而换过来如果你在udp中使用recv，那么就不知道该回复给谁了，如果你不需要回复的话，是可以使用的
+# 另外对于tcp是已经知道对端的，就没必要每次接受还多接受一个地址，没有意义，要获取地址信息，在accept中取得就好
+
+
+# udp server
+# 创建一个UDP的socket
+s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+# 绑定端口
+s.bind(('127.0.0.1',9999))
+print('Bind UDP on 9999...')
+while True:
+    # 接受数据，还返回一个对端地址
+    data,addr = s.recvfrom(1024)
+    print('Received from %s:%s.' % addr)
+    # 发送数据到客户端
+    s.sendto(b'Hello,%s!' % data,addr)
+
+
+# udp client
+# 创建一个UDP的socket，不用连接
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+for data in [b'Michael', b'Tracy', b'Sarah']:
+    # 发送数据:
+    s.sendto(data, ('127.0.0.1', 9999))
+    # 接收数据，这里我们并不需要回复了
+    print(s.recv(1024).decode('utf-8'))
+s.close()
+
+
+# 电子邮件
+
+# MUA：Mail User Agent——邮件用户代理
+# MTA：Mail Transfer Agent——邮件传输代理
+# MDA：Mail Delivery Agent——邮件投递代理
+# 发件人 -> MUA -> MTA -> MTA -> 若干个MTA -> MDA <- MUA <- 收件人
+
+
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+import smtplib
+from email import encoders
+from email.header import Header
+from email.mime.image import MIMEImage
+from email.utils import parseaddr,formataddr
+def _format_addr(s):
+    name,addr=parseaddr(s)
+    return formataddr((Header(name,'utf-8').encode(),addr))
+
+from_addr = '362240111@qq.com'
+password = 'nzczqhxqaqozbgjc'
+to_addr = 'gochna@sina.com'
+smtp_server = 'smtp.qq.com'
+subject = 'Picture and html mail test'
+
+msg = MIMEMultipart('alternative')
+msg['From'] = _format_addr('Python lover <{0}>'.format(from_addr))
+msg['To'] = _format_addr('root <{0}>'.format(to_addr))
+msg['Subject'] = Header(subject,'utf-8')
+
+
+underly = '<html><body><h1>Hello</h1>' +'<p>send by <a href="http://www.python.org">Python</a>...</p>' +'</body></html>'
+underly = MIMEText(underly,'html','utf-8')
+msg.attach(underly)
+
+with open('1.png','rb') as f:
+    msgImage = MIMEImage(f.read())
+msgImage.add_header('Content-ID','<0>')
+msg.attach(msgImage)
+
+
+att = '<html><body><h1>Hello</h1>' +'<p><img src="cid:0"></p>' +'</body></html>'
+att = MIMEText(att,'html','utf-8')
+msg.attach(att)
+
+server = smtplib.SMTP_SSL(smtp_server, 465)
+server.set_debuglevel(1)
+server.login(from_addr, password)
+server.sendmail(from_addr, [to_addr], msg.as_string())
+server.quit()
