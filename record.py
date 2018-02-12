@@ -2893,3 +2893,125 @@ server.set_debuglevel(1)
 server.login(from_addr, password)
 server.sendmail(from_addr, [to_addr], msg.as_string())
 server.quit()
+
+
+
+
+# POP3收取邮件
+
+import poplib
+from functools import reduce
+from email.parser import Parser
+from email.header import decode_header
+from email.utils import parseaddr
+
+
+# 下载邮件
+def down_email():
+    # 邮件地址，口令和POP3服务器地址
+    email = 'gochna@sina.com'
+    password = 'Yin1110!'
+    pop3_server = 'pop3.sina.com'
+    # 连接到POP3服务器
+    server = poplib.POP3(pop3_server)
+    # 打印POP3服务器的欢迎文字
+    print(server.getwelcome().decode('utf-8'))
+    # 开启debug
+    server.set_debuglevel(1)
+    # 身份认真
+    server.user(email)
+    server.pass_(password)
+    # 返回邮件的数量和占用的空间(单位为字节)
+    print('Messages: %s. Size: %s' % server.stat())
+    # list 方法返回[response,['msg_number,octet'...],octets]
+    # response为响应结果(包含总的字节大小)，msg_number为邮件编号，octet为每个邮件的大小(单位为字节)，octets为list方法返回数据大小(单位为字节)
+    resp,mails,octets = server.list()
+    print(resp,mails,octets)
+    # 我们可以用如下方法来试试看，结果是不是这样的
+    mailSizeList = list(map(lambda x:int(x.decode('utf-8').split(' ')[1]),mails))
+    mailTotalSize = reduce(lambda x,y:x+y,L)
+    print(mailTotalSize)
+
+    # 获取最新一封邮件，注意从索引1开始，默认下标越大，邮件越新，所以index就表示最新的邮件
+    index = len(mails)
+    # retr方法返回 ['response','data','octet']
+    # response 为响应结果(包含邮件大小),data 为邮件的二进制数据，待会我们再做处理,octet为邮件大小(单位字节)
+    resp,lines,octets = server.retr(index)
+    # 获得邮件的原始文本
+    msg_content = b'\r\n'.join(lines).decode('utf-8')
+    msg = Parser().parsestr(msg_content)
+    return msg
+    # 可以根据邮件索引号直接从服务器删除邮件:
+    # server.dele(index)
+    server.quit()
+
+# 邮件的subject或者Email中包含的名字都是经过编码后的str，要正常显示，就必须先decode
+def decode_str(s):
+    # 取parseaddr(msg.get('xxx')) 或者 msg.get('Subject')的内容，也就是编码的部分，然后返回一个list(值和编码)，然后对value值进行解码
+    value,charset = decode_header(s)[0]
+    if charset:
+        value = value.decode(charset)
+    return value
+
+# 文本邮件的内容也是str,还需要检测编码，
+# 否则，非UTF-8编码的邮件都无法正常显示：
+def guess_charset(msg):
+    # 获取字符集
+    charset = msg.get_charset()
+    if charset is None:
+        # content_type变小写
+        content_type = msg.get('Content-Type','').lower()
+        # 检测字符串中是否包含charset=
+        pos = content_type.find('charset=')
+        if pos >= 0:
+            charset = content_type[pos + 8:].strip()
+    return charset
+
+def print_info(msg,indent=0):
+    if indent == 0:
+        # 遍历From，To，Subject
+        for header in ['From','To','Subject']:
+            # 获取对应的内容
+            value = msg.get(header,'')
+            # 有内容
+            if value:
+                # 如果是subject
+                if header == 'Subject':
+                    value = decode_str(value)
+                # 如果是From or To
+                else:
+                    # 解析字符串，返回一个元组(编码的name，邮件地址)
+                    hdr,addr = parseaddr(value)
+                    # 对编码的部分进行解码
+                    name = decode_str(hdr)
+                    value = u'%s <%s>' % (name,addr)
+            print('%s%s: %s' % (' ' * indent,header,value))
+
+    # 如果消息由多个部分组成
+    if (msg.is_multipart()):
+        # 返回list，包含所有子对象
+        parts = msg.get_payload()
+        # enumerate将其组成一个索引序列，利用它可以同时获得索引和值
+        for n,part in enumerate(parts):
+            # 打印消息模块编号
+            print('%spart %s' % (' ' * indent,n))
+            # 打印分隔符
+            print('%s---------------------' % (' ' * indent))
+            # 递归处理，处理到msg没有多个部分的时候，执行下面的else部分的代码
+            print_info(part,indent + 1)
+    else:
+        # 返回消息的内容类型
+        content_type = msg.get_content_type()
+        # 如果是text或者html类型
+        if content_type == 'text/plain' or content_type=='text/html':
+            # 返回list，包含所有子对象并解码
+            content = msg.get_payload(decode=True)
+            # 猜测字符集
+            charset = guess_charset(msg)
+            # 字符集不能为空
+            if charset:
+                # 解码
+                content = content.decode(charset)
+            print('%sText: %s' % (' ' * indent,content+'...'))
+        else:
+            print('%sAttachment: %s' % (' ' * indent,content_type))
