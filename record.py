@@ -3015,3 +3015,194 @@ def print_info(msg,indent=0):
             print('%sText: %s' % (' ' * indent,content+'...'))
         else:
             print('%sAttachment: %s' % (' ' * indent,content_type))
+
+
+# SQLite
+#SQLite是一种嵌入式数据库，它的数据库就是一个文件。由于SQLite本身是C写的，体积小，所以经常被集成到各种应用程序中
+# 表是数据库中存放关系数据的集合
+
+import sqlite3,os
+# __file__获取当前文件位置，通过join，组成完整的db_file路径
+db_file = os.path.join(os.path.dirname(__file__),'test.db')
+# db文件如果存在就删除
+if os.path.isfile(db_file):
+    os.remove(db_file)
+#连接到sqlite数据库
+conn = sqlite3.connect(db_file)
+# 创建一个cursor
+cursor = conn.cursor()
+# 通过cursor来执行sql语句
+cursor.execute('create table user(id varchar(20) primary key, name varchar(20),score int)')
+cursor.execute(r"insert into user values('A-001','Adam',95)")
+cursor.execute(r"insert into user values('A-002','Bart',62)")
+cursor.execute(r"insert into user values('A-003','Lisa',78)")
+# 执行完成后记得关闭cursor
+cursor.close()
+# 提交事务，不提交的话，执行的语句没用
+conn.commit()
+# 关闭连接
+conn.close()
+
+def get_score_in(low,high):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        # 查询数据，如果有参数，那么需要将参数按照位置传递给execute()方法，有几个?占位符就必须对应几个参数
+        cursor.execute('select name from user where ?<=score and score<=? order by score ASC',(low,high))
+        # 通过fetchall()获得查询结果集
+        values = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+    return [i[0] for i in values]
+使用cursor对象可以执行select，insert，update，delete等语句
+
+
+#mySQL
+# 安装mysql之后，记得将编码改成utf-8
+# 安装mysql驱动
+# pip install mysql-connector-python --allow-external mysql-connector-python
+
+import mysql.connector
+# 创建数据库连接
+conn = mysql.connector.connect(user='root',password='root',database='test')
+# 创建cursor
+cursor = conn.cursor()
+# 创建user表，并插入数据
+cursor.execute('create table user (id varchar(20) primary key, name varchar(20))')
+cursor.execute('insert into user (id,name) values (%s,%s)',['1','Michael'])
+# 提交事务
+conn.commit()
+# 关闭cursor
+cursor.close()
+# 关闭数据库连接
+conn.close()
+# 执行查询，和SQLite不同，MYSQL的占位符是%s
+cursor.execute('select * from user where id = %s',('1',))
+# 获取查询的值
+values = cursor.fetchall()
+print(values)
+cursor.close()
+conn.close()
+
+
+# ORM
+#!/usr/bin/python3
+#-*- coding:utf-8 -*-
+
+from sqlalchemy import Column, String, create_engine,Table,MetaData,Integer,ForeignKey
+from sqlalchemy.orm import sessionmaker,relationship,backref
+from sqlalchemy.ext.declarative import declarative_base
+# 一对多
+Base = declarative_base()
+
+# class Parent(Base):
+#     __tablename__ = 'parent'
+#     id = Column(Integer,primary_key=True)
+#     parent_name = Column(String(20))
+#     child = relationship('Child',backref='parent')
+#     def __str__(self):
+#         return 'id:%s,parent_name:%s,child:%s'%(self.id,self.parent_name,self.child)
+#     __repr__ = __str__
+#
+# class Child(Base):
+#     __tablename__ = 'child'
+#     id = Column(Integer,primary_key=True)
+#     child_name = Column(String(20))
+#     parent_id = Column(Integer,ForeignKey('parent.id'))
+#     def __str__(self):
+#         return 'id:%s,child_name:%s,parent_id:%s' % (self.id,self.child_name,self.parent_id)
+#     __repr__=__str__
+#
+# engine = create_engine('mysql+mysqlconnector://root:root@172.29.19.37:3306/test')
+# # Base.metadata.create_all(engine)
+#
+# DBSession = sessionmaker(bind=engine)
+# session = DBSession()
+# #
+# # kevinguo = Parent(id='1',parent_name='kevinguo')
+# # kaiz = Child(id='1',child_name='kaiz',parent_id='1')
+# # zhihuic = Child(id='2',child_name='zhihuic',parent_id='1')
+# # session.add_all([kevinguo,kaiz,zhihuic])
+# # session.commit()
+# # session.close()
+#
+# user = session.query(Parent).filter(Parent.parent_name=='kevinguo').one()
+# print(user)
+
+# 多对一
+
+# class Parent(Base):
+#     __tablename__ = 'parent'
+#     id = Column(Integer,primary_key=True)
+#     parent_name = Column(String(20))
+#     child_id = Column(Integer,ForeignKey('child.id'))
+#     child = relationship('Child',backref='parent')
+#     def __str__(self):
+#         return 'id:%s,parent_name:%s,child:%s'%(self.id,self.parent_name,self.child)
+#     __repr__ = __str__
+#
+# class Child(Base):
+#     __tablename__ = 'child'
+#     id = Column(Integer,primary_key=True)
+#     child_name = Column(String(20))
+#     def __str__(self):
+#         return 'id:%s,child_name:%s' % (self.id,self.child_name)
+#     __repr__=__str__
+
+# kevinguo = Parent(id='1',parent_name='kevinguo',child_id='1')
+# kaiz = Parent(id='2',parent_name='kaiz',child_id='1')
+# weiy = Child(id='1',child_name='weiy')
+
+# 一对一
+class Parent(Base):
+    __tablename__ = 'parent'
+    id = Column(Integer,primary_key=True)
+    parent_name = Column(String(20))
+    child_id = Column(Integer,ForeignKey('child.id'))
+    child = relationship('Child',back_populates="parent")
+    def __str__(self):
+        return 'id:%s,parent_name:%s,child:%s'%(self.id,self.parent_name,self.child)
+    __repr__ = __str__
+
+class Child(Base):
+    __tablename__ = 'child'
+    id = Column(Integer,primary_key=True)
+    child_name = Column(String(20))
+    parent=relationship("Parent",back_populates="child",uselist=False)
+    def __str__(self):
+        return 'id:%s,child_name:%s' % (self.id,self.child_name)
+    __repr__=__str__
+
+engine = create_engine('mysql+mysqlconnector://root:root@172.29.19.37:3306/test')
+Base.metadata.create_all(engine)
+
+kevinguo = Parent(id='1',parent_name='kevinguo',child_id='1')
+kaiz = Parent(id='2',parent_name='kaiz',child_id='1')
+weiy = Child(id='1',child_name='weiy')
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
+session.add_all([kevinguo,kaiz,weiy])
+session.commit()
+session.close()
+
+user = session.query(Parent).all()
+print([x for x in user])
+session.close()
+
+# 方法2
+# metadata = MetaData()
+# users_table = Table('user',metadata,
+#                     Column('id',Integer,primary_key=True),
+#                     Column('name',String(20)),
+#                     Column('password',String(20))
+#                     )
+# engine = create_engine('mysql+mysqlconnector://root:root@172.29.19.37:3306/test',echo=True)
+# conn = engine.connect()
+# users_table.create(bind=engine)
+
+# engine.execute(
+#     r"INSERT INTO test.user(id,name,password) VALUES ('2','michael','234566');"
+# )
+# conn.execute(users_table.insert(),{'id':3,'name':'bobo','password':'kevinguo'})
+# conn.close()
