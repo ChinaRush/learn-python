@@ -3094,41 +3094,52 @@ from sqlalchemy import Column, String, create_engine,Table,MetaData,Integer,Fore
 from sqlalchemy.orm import sessionmaker,relationship,backref
 from sqlalchemy.ext.declarative import declarative_base
 # 一对多
+# 创建对象的基类
 Base = declarative_base()
 
-# class Parent(Base):
-#     __tablename__ = 'parent'
-#     id = Column(Integer,primary_key=True)
-#     parent_name = Column(String(20))
-#     child = relationship('Child',backref='parent')
-#     def __str__(self):
-#         return 'id:%s,parent_name:%s,child:%s'%(self.id,self.parent_name,self.child)
-#     __repr__ = __str__
-#
-# class Child(Base):
-#     __tablename__ = 'child'
-#     id = Column(Integer,primary_key=True)
-#     child_name = Column(String(20))
-#     parent_id = Column(Integer,ForeignKey('parent.id'))
-#     def __str__(self):
-#         return 'id:%s,child_name:%s,parent_id:%s' % (self.id,self.child_name,self.parent_id)
-#     __repr__=__str__
-#
-# engine = create_engine('mysql+mysqlconnector://root:root@172.29.19.37:3306/test')
-# # Base.metadata.create_all(engine)
-#
-# DBSession = sessionmaker(bind=engine)
-# session = DBSession()
-# #
-# # kevinguo = Parent(id='1',parent_name='kevinguo')
-# # kaiz = Child(id='1',child_name='kaiz',parent_id='1')
-# # zhihuic = Child(id='2',child_name='zhihuic',parent_id='1')
-# # session.add_all([kevinguo,kaiz,zhihuic])
-# # session.commit()
-# # session.close()
-#
-# user = session.query(Parent).filter(Parent.parent_name=='kevinguo').one()
-# print(user)
+class Parent(Base):
+    # 表的名称
+    __tablename__ = 'parent'
+    # 表的结构
+    id = Column(Integer,primary_key=True)
+    parent_name = Column(String(20))
+    # 一对多
+    child = relationship('Child',backref='parent')
+    def __str__(self):
+        return 'id:%s,parent_name:%s,child:%s'%(self.id,self.parent_name,self.child)
+    __repr__ = __str__
+
+class Child(Base):
+    __tablename__ = 'child'
+    id = Column(Integer,primary_key=True)
+    child_name = Column(String(20))
+    # 多的一方的child表是通过外键关联到parent表的
+    parent_id = Column(Integer,ForeignKey('parent.id'))
+    def __str__(self):
+        return 'id:%s,child_name:%s,parent_id:%s' % (self.id,self.child_name,self.parent_id)
+    __repr__=__str__
+
+# 初始化数据库连接
+engine = create_engine('mysql+mysqlconnector://root:root@172.29.19.37:3306/test')
+# 创建所有表
+Base.metadata.create_all(engine)
+# 创建DBSession，绑定engine
+DBSession = sessionmaker(bind=engine)
+# 创建session对象
+session = DBSession()
+
+# 创建各个对象
+kevinguo = Parent(id='1',parent_name='kevinguo')
+kaiz = Child(id='1',child_name='kaiz',parent_id='1')
+zhihuic = Child(id='2',child_name='zhihuic',parent_id='1')
+# 将数据添加到session
+session.add_all([kevinguo,kaiz,zhihuic])
+# 提交事务
+session.commit()
+session.close()
+# 创建Query查询，filter是where条件，最后调用one()返回唯一行，如果调用all()则返回所有行:
+user = session.query(Parent).filter(Parent.parent_name=='kevinguo').one()
+session.close()
 
 # 多对一
 
@@ -3190,7 +3201,7 @@ user = session.query(Parent).all()
 print([x for x in user])
 session.close()
 
-# 方法2
+# 我们还可以使用下面的方式来创建表
 # metadata = MetaData()
 # users_table = Table('user',metadata,
 #                     Column('id',Integer,primary_key=True),
@@ -3206,3 +3217,132 @@ session.close()
 # )
 # conn.execute(users_table.insert(),{'id':3,'name':'bobo','password':'kevinguo'})
 # conn.close()
+
+
+
+# HTTP协议简介
+
+# 1.http request headers
+# GET / HTTP/1.1
+# Host: www.sina.com
+# 如果请求是POST，那么请求还会包含body，包含请求数据
+
+# 2.http response headers (可选body，但是通常都会有body)
+# 200 OK
+# Content-Type: text/html 浏览器靠这个来判断响应内容是啥
+
+# 3.other resources request
+# 如果浏览器还要请求其他的资源，那么会再次发出HTTP请求，重复12步骤
+
+# HTTP格式如下
+# 每个Header一行一个，换行符是\r\n
+# 遇到连续两个\r\n，header部分结束，后面全是body
+# http响应如果包含body，是通过\r\n\r\n来分割的
+
+
+# HTML简介
+# HTML是由一系列的Tag组成，最外层的是<html></html>，由于html是富文档模型，所以还有一些tag来表示链接，图片，表格，表单等
+# CSS 用来控制HTML里的所有元素如何展现
+# javascript是为了让HTML具有交互性而作为脚本语言添加的，javascript可以内嵌到html中，也可以从外部链接到html中
+
+
+# WSGI接口 (web server gateway interface)
+# 最简单的web应用就是把HTML文件用文件保存好，然后用一个现成的HTTP服务器软件，来接受用户请求，从文件中读取html，返回。如nginx，apache
+# 如果要动态生成html，我们可以忽略掉底层的代码，用python专注生成html，所以，需要一个统一的接口，这个接口就是wsgi
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return [b'<h1>Hello, web!</h1>']
+# 上面的application()函数就是符合WSGI标准的一个HTTP处理函数，它接收两个参数
+# environ: 一个包含所有HTTP请求信息的dict对象
+# start_response: 一个发送HTTP响应的函数
+# HTTP请求的所有输入信息都可以通过environ获得
+# HTTP响应的输出都可以通过start_response()加上函数返回值作为body
+def application(environ,start_response):
+    start_response('200 OK',[('Content-Type','text/html')])
+    body = '<h1>Hello,%s!</h1>' % (environ['PATH_INFO'][1:] or 'web')
+    return [body.encode('utf-8')]
+# 复杂的Web应用程序，光靠一个WSGI函数来处理还是太底层了，我们需要在WSGI之上再抽象出Web框架，进一步简化Web开发。
+
+
+
+# Flask框架
+# Flask通过request.form['name']来获取表单的内容
+from flask import Flask
+from flask import request
+
+app = Flask(__name__)
+
+@app.route('/',methods=['GET','POST'])
+def home():
+    return '<h1>Home</h1>'
+
+@app.route('/signin',methods=['GET'])
+def signin_form():
+    return '''
+    <form action="/signin" method="post">
+    <p><input name="username"></p>
+    <p><input name="password" type="password"></p>
+    <p><button type="submit">Sign In</button></p>
+    </form>
+    '''
+
+@app.route('/signin',methods=['POST'])
+def signin():
+    if request.form['username']=='admin' and request.form['password']=='admin':
+        return '<h2>hello,admin!</h2>'
+    return '<h2>Bad username or password.</h2>'
+
+if __name__ == '__main__':
+    app.run()
+
+
+# 使用模板
+
+# 我们前面的例子中，函数中包含了HTML，但是，我们知道，如果你要写一个几千行的HTML，怎么可能在python中用字符串写出来
+# 所以，我们需要模板，即MVC(module view controller)
+# 这个模板不是普通的模板，而是嵌入了一些变量和指令，然后，根据我们传入的数据，渲染后，得到最终的HTML
+from flask import Flask
+from flask import request
+from flask import render_template
+
+# app是Flask的实例，它接收包或者模块的名字作为参数，但一般都是传递__name__
+app = Flask(__name__)
+
+# URL和函数的路由
+@app.route('/',methods=['GET','POST'])
+def home():
+    return render_template('home.html')
+
+@app.route('/signin',methods=['GET'])
+def signin_form():
+    return render_template('form.html')
+
+@app.route('/signin',methods=['POST'])
+def signin():
+    # Flask通过request.form['name']来获取表单的内容
+    username = request.form['username']
+    password = request.form['password']
+    if username == 'admin' and password == 'admin':
+        # 说白了，其实render_template的功能是先引入signin-ok.html，同时根据后面传入的参数，对html进行修改渲染
+        return render_template('signin-ok.html',username=username)
+    # 这里就是引入form.html，然后根据后面传入的参数，对form.html进行渲染
+    return render_template('form.html',message='Bad username or password',username=username)
+
+if __name__ == '__main__':
+    app.run()
+
+
+# 异步和IO多路复用
+# 这其实就是事件驱动的 epoll IO模型，本质上还是 同步IO。
+# 真正意义上的 异步IO 是说内核直接将数据拷贝至用户态的内存单元，再通知程序直接去读取数据。
+# select / poll / epoll 都是同步IO的多路复用模式
+
+# 1.同步和异步
+# 同步和异步关注的是消息通信机制
+# 所谓同步，就是在发出一个*调用*时，没得到结果之前，该*调用*就不返回。但是一旦调用返回就得到返回值了，*调用者*主动等待这个*调用*的结果
+# 所谓异步，就是在发出一个*调用*时，这个*调用*就直接返回了，不管返回有没有结果。当一个异步过程调用发出后，*被调用者*通过状态，通知来通知*调用者*，或者通过回调函数处理这个调用
+
+# 2.阻塞和非阻塞
+# 阻塞和非阻塞关注的是程序在等待调用结果时的状态
+# 阻塞调用是指调用结果返回之前，当前线程会被挂起。调用线程只有在得到结果之后才返回
+# 非阻塞调用是指在不能立即得到结果之前，该调用不会阻塞当前线程
