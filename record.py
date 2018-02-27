@@ -3380,12 +3380,16 @@ if __name__ == '__main__':
 
 
 # 协程
-# 微线程，纤程
+# 微线程，纤程，包含于线程
+# 协程就是你可以暂停执行的函数，我们可以把它理解成“就像生成器一样”
+# 线程内部的协程，通过中断暂停的方式，完成多个任务
+# 协程是用户自己来编写调度逻辑的，对CPU来说，协程是单线程，CPU不用去考虑怎么调度、切换上下文，省去了CPU的切换开销，所以协程在一定程度上又好于多线程。
 # 协程的特点在于每次只有一个线程，不存在线程切换的消耗，有点类似于CPU的中断，所以，不存在多线程的锁机制，不存在变量冲突
 # 如果我们要利用多核CPU，可以使用多进程+协程，既充分利用多核，又充分发挥协程的高效率
 
 # 用个例子来理解下协程的过程
 # 这里是一个传统的生产者-消费者模型
+# 这个例子的关键，在于要记住yield在这里即接受send()发过来的值，也返回值
 def consumer():
     r = None
     while True:
@@ -3414,3 +3418,55 @@ def produce(c):
 
 c = consumer()
 produce(c)
+
+
+# asyncio
+
+# 前面的yield返回了一个生成器
+# 而这里的yield from解析了生成器对象，将其中的每个item返回了，yield from iterable 本质上等于for item in iterable: yield item
+# yield from 后面必须跟iterable对象(可以是生成器，迭代器)
+# yield from语法可以让我们方便地调用另一个generator
+
+import threading
+import asyncio
+
+@asyncio.coroutine
+def hello():
+    print('Hello world! (%s)' % threading.currentThread())
+    # 试试注释掉这行，你会发现，这时候是按顺序执行的，因为中间没有IO耗时操作，所以就没有中断
+    yield from asyncio.sleep(1)
+    print('Hello again! (%s)' % threading.currentThread())
+
+loop = asyncio.get_event_loop()
+tasks = [hello(), hello()]
+loop.run_until_complete(asyncio.wait(tasks))
+loop.close()
+
+
+import asyncio
+
+@asyncio.coroutine
+def wget(host):
+    print('wget %s...' % host)
+    # 返回的是generator,内容是reader和writer
+    connect = asyncio.open_connection(host, 80)
+    # 这里就直接yield from 调用了这个coroutine
+    reader, writer = yield from connect
+    # 指定header
+    header = 'GET / HTTP/1.0\r\nHost: %s\r\n\r\n' % host
+    # 这算是操作了
+    writer.write(header.encode('utf-8'))
+    # 刷新底层传输的写缓冲区。也就是把需要发送出去的数据，从缓冲区发送出去。没有手工刷新，asyncio为你自动刷新了，针对内存不足的时候， 写一下刷一下，写一下刷一下
+    yield from writer.drain()
+    while True:
+        # 这部分是读取文件内容，自行调度reader.readline()这个协程
+        line = yield from reader.readline()
+        if line == b'\r\n':
+            break
+        print('%s header > %s' % (host, line.decode('utf-8').rstrip()))
+    writer.close()
+
+loop = asyncio.get_event_loop()
+tasks = [wget(host) for host in [ 'www.163.com','www.sina.com.cn','www.python.org']]
+loop.run_until_complete(asyncio.wait(tasks))
+loop.close()
